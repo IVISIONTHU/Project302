@@ -18,14 +18,13 @@ CAMERA_INDEX = 1;
 
 # parameters for detection
 
-detect_w = 160; # width of input image
+detect_w = 320; # width of input image
 
-detect_h = 120; # height of input image
+detect_h = 240; # height of input image
 
 detect_minsize = 20 # minsize of image pyramid
 
-detect_threshold = [0.6, 0.7, 0.7] # thresholds for P-Net, R-Net and O-Net
-
+detect_threshold = [0.6, 0.8, 0.8] # thresholds for P-Net, R-Net and O-Net6
 detect_factor = 0.709 # resizing factor of image pyramid
 
 # parameters for tracking
@@ -34,7 +33,7 @@ track_minsize = 20 # minsize of image pyramid
 
 track_threshold = [0.6, 0.7, 0.7] # thresholds for P-Net, R-Net and O-Net
 
-track_factor = 0.709 # resizing factor of image pyramid
+track_factor = 0.4 # resizing factor of image pyramid
 
 
 

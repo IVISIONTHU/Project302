@@ -22,7 +22,7 @@ Here we initialize the project302
 4. surveillance   
 ''' 
 
-project = Project302(1,2);
+project = Project302(10,8);
 
 project.init_detector(cfg.detector_mtcnn);
 
@@ -79,6 +79,8 @@ def demo():
 		start = time.time();
 		ret,frame = cap.read();	
 		#frame = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_CUBIC)
+                if not ret:
+                    continue;
 		image = project.Surveillance(frame);
 		frame_index = frame_index + 1;
 		end = time.time();

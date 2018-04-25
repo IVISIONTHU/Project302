@@ -19,13 +19,44 @@ class Detector:
         self.image_cache = np.array([]);
         self.point_cache = np.array([]);
     
-    def UpdateBBoxCache(self, bboxes):
-        self.bbox_cache = bboxes;
+    def UpdateBBoxCache(self, bboxes, Threshold):
+        if self.bbox_cache.shape[0] < 1:
+            self.bbox_cache = bboxes;
+            return;
+        tmp_box = bboxes;
+        tmp_index = 0;
+        for index in range(bboxes.shape[0]):
+            for index2 in range(self.bbox_cache.shape[0]):
+                if (self.IOU(bboxes[index,:],self.bbox_cache[index2,:]) > Threshold):
+		    tmp_box[tmp_index,:] = self.bbox_cache[index2,:];
+                    tmp_index = tmp_index + 1;
+                    break; 
+                else :
+                    tmp_box[tmp_index,:] = bboxes[index,:];
+                    tmp_index = tmp_index + 1;
+                    break;
+        self.bbox_cache = tmp_box[:tmp_index,:];
+        #self.bbox_cache = bboxes;
     def UpdateImageCache(self, image):
         self.image_cache = image;
-    def UpdatePointCache(self, points):
-        self.point_cache = points;
-    
+    def UpdatePointCache(self, points, Threshold):
+        if self.point_cache.shape[0] < 1:
+            self.point_cache = points;
+            return;
+	tmp_point = points;
+        tmp_index = 0;
+        for index in range(points.shape[0]):
+            for index2 in range(self.point_cache.shape[0]):
+                if (self.distance(points[index,:],self.point_cache[index2,:]) < Threshold):
+		    tmp_point[tmp_index,:] = self.point_cache[index2,:];
+                    tmp_index = tmp_index + 1;
+                    break; 
+                else :
+                    tmp_point[tmp_index,:] = points[index,:];
+                    tmp_index = tmp_index + 1;
+                    break;
+	self.point_cache = tmp_point[:tmp_index,:];
+   
     def bbreg(self, boundingbox, reg):
         reg = reg.T
         
@@ -113,6 +144,25 @@ class Detector:
         bboxA[:,2:4] = bboxA[:,0:2] + np.repeat([l], 2, axis = 0).T 
         return bboxA
 
+    def IOU(self, bboxA, bboxB):
+        areaA = (bboxA[2] - bboxA[0]+1) * (bboxA[3] - bboxA[1]+1);
+        areaB = (bboxB[2] - bboxB[0]+1) * (bboxB[3] - bboxB[1]+1);
+        xx1 = max(bboxA[0],bboxB[0]);
+        xx2 = min(bboxA[2],bboxB[2]);
+        yy1 = max(bboxA[1],bboxB[1]);
+        yy2 = min(bboxA[3],bboxB[3]);
+        w = np.maximum(0.0, xx2 - xx1 + 1);
+        h = np.maximum(0.0, yy2 - yy1 + 1);
+        inter = w * h
+        iou = inter / (areaA + areaB - inter);
+        
+        return iou;
+
+    def distance(self, pointA, pointB):
+        sum = 0
+        for i in range(1,10):
+	    sum = sum + abs(pointA[i] - pointB[i])
+	return sum
 
     def nms(self, boxes, threshold, type):
         """nms
@@ -184,12 +234,29 @@ class Detector:
         y1 = boxes[:,1]
         x2 = boxes[:,2]
         y2 = boxes[:,3]
-
+        '''
         for i in range(x1.shape[0]):
             cv2.rectangle(im, (int(x1[i]), int(y1[i])), (int(x2[i]), int(y2[i])), (0,255,0), 6);
             for index in range(0,5):
 
             	cv2.circle(im,(int(points[i][index]),int(points[i][index+5])),3,(0,255,0),-1);
+        '''
+        x3 = x1 + 0.25 * (x2 - x1)
+        x4 = x2 - 0.25 * (x2 - x1)
+        y3 = y1 + 0.25 * (y2 - y1)
+        y4 = y2 - 0.25 * (y2 - y1)
+        for i in range(x1.shape[0]):
+            cv2.line(im, (int(x1[i]), int(y1[i])), (int(x3[i]), int(y1[i])), (0,255,0), 2);
+            cv2.line(im, (int(x1[i]), int(y1[i])), (int(x1[i]), int(y3[i])), (0,255,0), 2);
+	    cv2.line(im, (int(x2[i]), int(y1[i])), (int(x4[i]), int(y1[i])), (0,255,0), 2);
+	    cv2.line(im, (int(x2[i]), int(y1[i])), (int(x2[i]), int(y3[i])), (0,255,0), 2);
+	    cv2.line(im, (int(x1[i]), int(y2[i])), (int(x3[i]), int(y2[i])), (0,255,0), 2);
+	    cv2.line(im, (int(x1[i]), int(y2[i])), (int(x1[i]), int(y4[i])), (0,255,0), 2);
+	    cv2.line(im, (int(x2[i]), int(y2[i])), (int(x4[i]), int(y2[i])), (0,255,0), 2);
+	    cv2.line(im, (int(x2[i]), int(y2[i])), (int(x2[i]), int(y4[i])), (0,255,0), 2);
+	    for index in range(0,5):
+            	cv2.circle(im,(int(points[i][index]),int(points[i][index+5])),5,(0,255,0),1);
+
         return im
 
     from time import time
@@ -198,7 +265,6 @@ class Detector:
         _tstart_stack.append(time())
     def toc(fmt="Elapsed: %s s"):
         print(fmt % (time()-_tstart_stack.pop()))
-
 
     def detect_face(self, img, minsize, PNet, RNet, ONet, threshold, fastresize, factor):       
         
@@ -440,8 +506,7 @@ class Detector:
         
         boundingboxes, points, verify_features = self.detect_face(img_matlab, minsize, PNet, RNet, ONet, threshold, False, factor);
 
-        if len(boundingboxes)<1:
-            return  frame, boundingboxes, points, verify_features;
+        if len(boundingboxes) < 1:
+            return  boundingboxes, points, verify_features;
         boundingboxes ,points= self.resize_img(img, frame, boundingboxes, points);
-        frame = self.drawBoxes(frame, boundingboxes, points);
-        return frame, boundingboxes, points, verify_features
+        return boundingboxes, points, verify_features
