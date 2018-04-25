@@ -22,7 +22,7 @@ Here we initialize the project302
 4. surveillance   
 ''' 
 
-project = Project302(4,8);
+project = Project302(10,8);
 
 project.init_detector(cfg.detector_mtcnn);
 
@@ -85,7 +85,6 @@ def demo():
                 if not ret:
                     continue;
                 if frame_index % 3    !=0:
-                    frame_index = frame_index +1 ;
                     continue;
 		#cv2.imshow('test',frame);
 		image = project.Surveillance(frame);

@@ -12,9 +12,9 @@ tracker_goturn = '../models/tracker/Goturn_1_0_0';
 
 GPU_MODE = False;
 
-GPU_DEVICE = 7;
+GPU_DEVICE = 0;
 
-CAMERA_INDEX = 1;
+CAMERA_INDEX = 0;
 
 # parameters for detection
 
@@ -22,10 +22,10 @@ detect_w = 320; # width of input image
 
 detect_h = 240; # height of input image
 
-detect_minsize = 20 # minsize of image pyramid
+detect_minsize = 30 # minsize of image pyramid
 
-detect_threshold = [0.6, 0.8, 0.8] # thresholds for P-Net, R-Net and O-Net6
-detect_factor = 0.709 # resizing factor of image pyramid
+detect_threshold = [0.8, 0.9, 0.8] # thresholds for P-Net, R-Net and O-Net6
+detect_factor = 0.609 # resizing factor of image pyramid
 
 # parameters for tracking
 

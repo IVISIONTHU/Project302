@@ -312,21 +312,23 @@ class Detector:
                 pick = self.nms(boxes, 0.5, 'Union')
 
                 if len(pick) > 0 :
+                    # tmp debug
                     boxes = boxes[pick, :]
 
             if boxes.shape[0] != 0:
                 total_boxes = np.concatenate((total_boxes, boxes), axis=0)
 	    end = time.time();
 
+            print('PNET {}'.format(boxes.shape))
 
         #####
         # 1 #
         #####
-        numbox = total_boxes.shape[0]
+        numbox = total_boxes.shape[0];
         if numbox > 0:
             # nms
             pick = self.nms(total_boxes, 0.7, 'Union')
-            total_boxes = total_boxes[pick, :]
+            total_boxes = total_boxes[pick[:min(32,len(pick))], :]
             #print("[2]:",total_boxes.shape[0])
             
             # revise and convert to square
@@ -383,6 +385,7 @@ class Detector:
             
             score =  np.array([score[pass_t]]).T
             total_boxes = np.concatenate( (total_boxes[pass_t, 0:4], score), axis = 1)
+            print('RNET {}'.format(total_boxes.shape))
             
             mv = out['conv5-2'][pass_t, :].T
             if total_boxes.shape[0] > 0:
