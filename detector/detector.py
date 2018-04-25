@@ -255,7 +255,7 @@ class Detector:
 	    cv2.line(im, (int(x2[i]), int(y2[i])), (int(x4[i]), int(y2[i])), (0,255,0), 2);
 	    cv2.line(im, (int(x2[i]), int(y2[i])), (int(x2[i]), int(y4[i])), (0,255,0), 2);
 	    for index in range(0,5):
-            	cv2.circle(im,(int(points[i][index]),int(points[i][index+5])),5,(0,255,0),1);
+            	cv2.circle(im,(int(points[i][index]),int(points[i][index+5])),1,(0,255,0),-1);
 
         return im
 

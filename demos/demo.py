@@ -74,6 +74,8 @@ def demo():
 	print('\n\n\n\n\n\n\n\n\n');
 	frame_index = 1;
 	cap = cv2.VideoCapture(cfg.CAMERA_INDEX);
+	cap.set(3, 1920);
+	cap.set(4, 1080);
 	ret ,frame = cap.read();
 	while(ret):
 		start = time.time();
@@ -81,12 +83,18 @@ def demo():
 		#frame = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_CUBIC)
                 if not ret:
                     continue;
+		#cv2.imshow('test',frame);
 		image = project.Surveillance(frame);
 		frame_index = frame_index + 1;
 		end = time.time();
 		print('log project time = {}\n'.format(end - start));
-		#image = image[:,:,::-1];
-		cv2.imshow('test_win',image);
+		#image = image[:,:,::-1]
+		#image = cv2.resize(image, (1080, 960),interpolation=cv2.INTER_CUBIC)
+		window_name = 'test_win'
+		cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+		cv2.setWindowProperty(window_name,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+		cv2.imshow(window_name,image);
+
 		cv2.waitKey(33);
 if __name__ == '__main__':
 	demo();

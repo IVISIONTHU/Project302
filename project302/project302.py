@@ -65,8 +65,8 @@ class Project302:
 			face_index = bboxes.shape[0];
                         #self.detector.UpdateBBoxCache(bboxes); 
 			if (len(bboxes) >= 1):
-				self.detector.UpdateBBoxCache(bboxes[:min(face_index,self.max_face),:], 0.7); 
-				self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 30); 
+				self.detector.UpdateBBoxCache(bboxes[:min(face_index,self.max_face),:], 0.8); 
+				self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 5); 
 				image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, points);
 			#if (len(bboxes) < 1):
 			#    image_result = image.copy();
@@ -118,8 +118,8 @@ class Project302:
 					verify_features[face_index,:] = tmp_verify_features;
                                         face_index = face_index + 1;				
 				if (len(bboxes) >= 1):
-					self.detector.UpdateBBoxCache(bboxes[:min(face_index,self.max_face),:], 0.7); 
-					self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 80); 
+					self.detector.UpdateBBoxCache(bboxes[:min(face_index,self.max_face),:], 0.8); 
+					self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 10); 
 					image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, points);
 							
 		# verify
