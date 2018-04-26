@@ -1,0 +1,6 @@
+*.jpg
+*.npy
+*.sw[a-z]
+demos/headteachers/*
+verifier/headteachers/*
+verifier/Database/*

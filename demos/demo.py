@@ -45,7 +45,7 @@ else:
 
 def show_result(image,dets):
 	#image = image[:,:,(2,1,0)];
-	if(np.size(dets) ==0):
+	if(np.size(dets) == 0):
 		return image
 	for index in xrange(np.size(dets,0)):
 		bbox = dets[index];

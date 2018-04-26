@@ -10,7 +10,7 @@ detctor_rfcn = '../models/detection/detector_rfcn_1_0_0';
 # tracker Goturn model
 tracker_goturn = '../models/tracker/Goturn_1_0_0';
 
-GPU_MODE = False;
+GPU_MODE = True;
 
 GPU_DEVICE = 0;
 

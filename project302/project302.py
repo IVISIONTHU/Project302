@@ -1,12 +1,12 @@
 import sys
 import detector
-#import verifier
+import verifier
 import cv2
 import numpy as np
 import config as cfg
 
 class Project302:
-	def __init__(self,detect_interval,max_face,show_result = False,do_verfiy = False):
+	def __init__(self,detect_interval,max_face,show_result = False,do_verify = False):
 		print('init Project302\n');
 		self.detect_interval = detect_interval;
 		self.max_face = max_face;
@@ -25,15 +25,52 @@ class Project302:
 		self.track_threshold = cfg.track_threshold;
 		self.track_factor = cfg.track_factor;		
 
-
 	def init_detector(self, caffe_model_path):
 		self.detector = detector.Detector(caffe_model_path);
 		print('detector init success');
 
-
 	def init_verifier(self,model_proto,model_weight):
-		self.verifier = verifier.Verifier(model_proto,model_weight);
-		print('verifier init success');	
+	    self.verifier = verifier.Verifier(model_proto, 
+                                              model_weight, 
+                                              database_root='../verifier/Database',
+                                              Threshold=0.3)
+	    print('verifier init success')
+
+        def add_identity_to_database(self, img, ID, detect_before_id=False):
+            if detect_before_id:
+                img = self.get_detected_face(img, single_face=True)
+            status = self.verifier.Verifier([img], save_id=True, ID=ID)
+            if status:
+                print('{} Identity addition succeed'.format(ID))
+            return
+
+        def verification(self, img):
+            if len(img.shape) == 3:
+                img = img[np.newaxis, :]
+            ids = self.verifier.Verifier(img)
+            return ids
+
+        def get_detected_face(self, img, single_face=False):
+            bboxes, _, _ = self.detector.detect(img, 
+                                self.detect_w, 
+                                self.detect_h, 
+                                self.detect_minsize, 
+                                self.detect_threshold, 
+                                self.detect_factor)
+            if len(bboxes) < 1:
+                print('No face found in image')
+                # raise TypeError
+            if single_face:
+                if len(bboxes) > 1:
+                    print('Containing multiple faces')
+                    # raise TypeError
+                bboxes = bboxes[0].astype(np.int)
+                return img[bboxes[1]:bboxes[3], bboxes[0]:bboxes[2], :]
+            else:
+                imgs = [img[bbox[1]:bbox[3], bbox[0]:bbox[2], :] for bbox in bboxes.astype(np.int)]
+                return imgs
+
+
         def Filter(self,bbox,points,features):
             if bbox.shape[0] < 1:
                 return None,None,None;
