@@ -76,8 +76,8 @@ def show_result(image,bboxes):
 def demo():
 	print('\n\n\n\n\n\n\n\n\n');
 	cap = cv2.VideoCapture(cfg.CAMERA_INDEX);
-	# cap.set(3, 1920);
-	# cap.set(4, 1080);
+	cap.set(3, 1920);
+	cap.set(4, 1080);
 	ret, frame = cap.read();
         frame_index = cfg.frame_skip;
 	while(ret):
@@ -99,8 +99,8 @@ def demo():
 		window_name = 'test_win'
 		# cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
 		cv2.namedWindow(window_name)
-		# cv2.setWindowProperty(window_name,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
-		cv2.imshow(window_name,image);
+		# cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+		cv2.imshow(window_name, image);
 
 		cv2.waitKey(33);
 if __name__ == '__main__':

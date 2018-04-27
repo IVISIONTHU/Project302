@@ -23,7 +23,7 @@ Here we initialize the project302
 4. surveillance   
 ''' 
 
-project = Project302(detect_interval=1, verify_interval=20, max_face=8, do_verification=True)
+project = Project302(detect_interval=1, max_face=8, do_verification=True)
 
 project.init_detector(cfg.detector_mtcnn)
 project.init_verifier('../models/verifier/verifier.prototxt', '../models/verifier/verifier.caffemodel')
@@ -159,9 +159,9 @@ def online_test():
             if face is None:
                 continue
             IDs = ['' for _ in range(len(face))]
-            for i in range(0, len(face), cfg.verification_batch_size):
+            for i in range(0, len(face), cfg.max_face):
                 t1 = i
-                t2 = min(i+cfg.verification_batch_size, len(face))
+                t2 = min(i+cfg.max_face, len(face))
                 IDs[t1:t2] = project.verification(np.array(face[t1:t2]), keypoint[t1:t2])
 
             # result = project.verification(np.array(face), keypoint)

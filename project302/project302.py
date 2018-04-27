@@ -24,6 +24,9 @@ class Project302:
 		self.track_minsize = cfg.detect_minsize;
 		self.track_threshold = cfg.track_threshold;
 		self.track_factor = cfg.track_factor;		
+                self.track_crop = cfg.track_crop;
+                self.boxnum = cfg.track_boxnum;
+                self.point_thresh = cfg.point_thresh
 
 	def init_detector(self, caffe_model_path):
 		self.detector = detector.Detector(caffe_model_path);
@@ -33,13 +36,15 @@ class Project302:
 	    self.verifier = verifier.Verifier(model_proto, 
                                               model_weight, 
                                               database_root='../verifier/Database',
-                                              Threshold=0.6)
+                                              Threshold=0.2)
 	    print('verifier init success')
 
         def add_identity_to_database(self, img, ID, detect_before_id=False):
             if len(np.array(img).shape) == 3:
                 if detect_before_id:
                     img, points = self.get_detected_face(img, single_face=True)
+                    if None in img:
+                        return False
                 status = self.verifier.Verifier([img], points, save_id=True, ID=ID)
             else:
                 if detect_before_id:
@@ -47,18 +52,18 @@ class Project302:
                     point_list = [None for _ in range(len(img))]
                     for idx, _img in enumerate(img):
                         face_list[idx], point_list[idx] = self.get_detected_face(_img, single_face=True)
-                    img = face_list
-                for i in range(0, len(img), cfg.verification_batch_size):
+                        if face_list[idx] is None:
+                            return False
+
+                for i in range(0, len(img), cfg.max_face):
                     t1 = i
-                    t2 = min(i+cfg.verification_batch_size, len(img))
+                    t2 = min(i+cfg.max_face, len(img))
                     status = self.verifier.Verifier(img[t1:t2], point_list[t1:t2], save_id=True, ID=ID[t1:t2])
                     if not status:
                         print('{} Identity addition failed'.format(ID[t1:t2]))
-            return
+            return True
 
         def verification(self, img, keypoint):
-            # print('img shape {}'.format(np.array(img).shape))
-            # print('keypoint shape {}'.format(np.array(keypoint).shape))
             if len(np.array(img).shape) == 3:
                 img = img[np.newaxis, :]
             ids = self.verifier.Verifier(img, keypoint)
@@ -84,7 +89,7 @@ class Project302:
                     # raise TypeError
                 bboxes = bboxes[0].astype(np.int)
                 img = img[bboxes[1]:bboxes[3], bboxes[0]:bboxes[2], :]
-                return img, points
+                return img, np.array(points[0])
             else:
                 imgs = [img[bbox[1]:bbox[3], bbox[0]:bbox[2], :] for bbox in bboxes.astype(np.int)]
                 return imgs, points
@@ -101,7 +106,6 @@ class Project302:
             return bbox[index,:],points[index,:],features[index,:];
 
         def UpdateCache(self, bboxes, points, ids=None, bbox_threshold=0.8, point_threshold=10.0):
-            print('ids {}'.format(ids))
             if self.detector.bbox_cache.shape[0] < 1:
                 self.detector.bbox_cache = bboxes
                 self.detector.point_cache = points
@@ -112,7 +116,6 @@ class Project302:
             if ids is not None:
                 tmp_id = ids
             tmp_index = 0;
-            print(bboxes.shape[0])
             for index in range(bboxes.shape[0]):
                 FOUND = False
                 for index2 in range(self.detector.bbox_cache.shape[0]):
@@ -147,6 +150,16 @@ class Project302:
                     tmp_point[tmp_index,:] = points[index,:];
                     tmp_index = tmp_index + 1;
             self.detector.point_cache = tmp_point[:tmp_index,:];
+
+        def draw(self, image, bboxes, points, ids):
+	    image = self.detector.drawBoxes(image, bboxes, points)
+            for _id, _bbox in zip(ids, bboxes):
+                if _id is not None:
+                    cv2.putText(image, _id, 
+                        (int((_bbox[0] + _bbox[3])/2), int(_bbox[1])), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 
+                        1, (0, 255, 0), 2)
+            return image
             
 
 	def Surveillance(self, image):
@@ -166,7 +179,7 @@ class Project302:
 		image_result = image.copy();
 		if(self.frame % self.detect_interval == 0):
 			# detect		
-			bboxes, points, verify_features = self.detector.detect(image, self.detect_w, self.detect_h, self.detect_minsize, self.detect_threshold, self.detect_factor);
+			bboxes, points, verify_features = self.detector.detect(image, self.detect_w, self.detect_h, self.detect_minsize, self.detect_threshold, self.detect_factor, 9999);
 			face_index = bboxes.shape[0];
                         #self.detector.UpdateBBoxCache(bboxes); 
 			# if (len(bboxes) >= 1):
@@ -187,7 +200,7 @@ class Project302:
 				# by dalong : load all faces as a batch
 				# crop -> resize (48 48)- > batch -> net  
 				for k in range(numbox):
-					crop_factor = 0.75
+					crop_factor = (self.track_crop - 1) / 2
 					# crop_factor = 0.25;
 
                                         crop_w = self.detector.bbox_cache[k, 2] - self.detector.bbox_cache[k, 0];
@@ -198,17 +211,27 @@ class Project302:
 					crop_x2 = int(self.detector.bbox_cache[k, 2] + crop_w * crop_factor);
 					crop_y2 = int(self.detector.bbox_cache[k, 3] + crop_h * crop_factor);
 					tmp_image = np.zeros((crop_y2 - crop_y1 + 1, crop_x2 - crop_x1 + 1, 3))
+					crop_image= image[max(0, crop_y1):min(image.shape[0], crop_y2) + 1, max(0, crop_x1):min(image.shape[1], crop_x2) + 1]
+					padx = tmp_image.shape[1] - crop_image.shape[1]
+					pady = tmp_image.shape[0] - crop_image.shape[0]
+					tmp_image = cv2.copyMakeBorder(crop_image, 0, pady, 0, padx, cv2.BORDER_CONSTANT)
+					# cv2.imshow('test', tmp_image)
+					crop_x1 = max(0, crop_x1)
+					crop_y1 = max(0, crop_y1)
+
+                                        '''
 					tmpx1 = max(0, 0 - crop_x1)
 					tmpx2 = min(crop_x2 - crop_x1, image.shape[1] - crop_x1)
 					tmpy1 = max(0, 0 - crop_y1)
 					tmpy2 = min(crop_y2 - crop_y1, image.shape[0] - crop_y1)
 					tmp_image[tmpy1:tmpy2, tmpx1:tmpx2] = image[max(0, crop_y1):min(image.shape[0], crop_y2), max(0, crop_x1):min(image.shape[1], crop_x2)]
+                                        '''
 					#  by dalong : w = h = 48;
 					w = 48 ;
                                         h = 48 * tmp_image.shape[0]/ tmp_image.shape[1];
 					#cv2.imshow('test'+str(k), tmp_image)
 					#if (bboxes.shape[0] == 0):
-					tmp_bboxes, tmp_points, tmp_verify_features = self.detector.detect(tmp_image, w, h, self.track_minsize, self.track_threshold, self.track_factor);
+					tmp_bboxes, tmp_points, tmp_verify_features = self.detector.detect(tmp_image, w, h, self.track_minsize, self.track_threshold, self.track_factor, self.boxnum);
 					points = np.array(points);
 
                                         tmp_bboxes , tmp_points, tmp_verify_features = self.Filter(tmp_bboxes,tmp_points,tmp_verify_features);
@@ -232,24 +255,26 @@ class Project302:
 		# verify
 		'''
 		verify_features is an 256*n array where n represents the number of bounding boxes
-		
 		'''
 		if (len(bboxes) >= 1):
                     _bbox = bboxes[:min(face_index, self.max_face),:]
                     _point = points[:min(face_index, self.max_face),:]
+                    _bbox = np.maximum(_bbox, 0.)
+                    _point = np.maximum(_point, 0.)
                     if self.do_verification and self.frame % self.detect_interval == 0:
                         faces = [image[bbox[1]:bbox[3], bbox[0]:bbox[2]] for bbox in _bbox.astype(np.int)]
                         _points = np.array([[[points[i][j] - _bbox[i][0], points[i][j+5] - _bbox[i][1]] 
                                          for j in range(5)] for i in range(len(_bbox))])
-                        ids = self.verification(np.array(faces), _points)
-                        print('id -{}'.format(ids))
+                        ids = self.verification(faces, _points)
+                        print('Results {}'.format(ids))
                         # _id = ids[:min(face_index, self.max_face),:]
 		        self.UpdateCache(_bbox, _point, np.array(ids), 0.8, 10)
                     else:
-		        self.UpdateCache(_bbox, _point, bbox_threshold=0.8, point_threshold=10)
+		        self.UpdateCache(_bbox, _point, bbox_threshold=0.8, point_threshold=self.point_thresh)
 
 		    # self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 10); 
 		    # image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, points)
-		    image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, self.detector.point_cache)
+		    # image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, self.detector.point_cache)
+                    image_result = self.draw(image, self.detector.bbox_cache, self.detector.point_cache, self.verifier.id_cache)
 
-		return image_result;
+		return image_result

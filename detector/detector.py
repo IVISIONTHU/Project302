@@ -31,12 +31,12 @@ class Detector:
 		    tmp_box[tmp_index,:] = self.bbox_cache[index2,:];
                     tmp_index = tmp_index + 1;
                     break; 
-                else:
+                else :
                     tmp_box[tmp_index,:] = bboxes[index,:];
                     tmp_index = tmp_index + 1;
                     break;
         self.bbox_cache = tmp_box[:tmp_index,:];
-        # self.bbox_cache = bboxes;
+        #self.bbox_cache = bboxes;
 
     def UpdateImageCache(self, image):
         self.image_cache = image;
@@ -161,10 +161,15 @@ class Detector:
         return iou;
 
     def distance(self, pointA, pointB):
-        sum = 0
-        for i in range(1,10):
-	    sum = sum + abs(pointA[i] - pointB[i])
-	return sum
+        sum1 = 0
+	sum2 = 0
+        for i in range(0,5):
+	    sum1 = sum1 + pointA[i] - pointB[i]
+	sum1 = abs(sum1)
+	for i in range(5, 10):
+	    sum2 = sum2 + pointA[i] - pointB[i]
+	sum2 = abs(sum2)
+	return sum1 + sum2
 
     def nms(self, boxes, threshold, type):
         """nms
@@ -229,9 +234,7 @@ class Detector:
 
         return boundingbox_out.T
 
-
-
-    def drawBoxes(self, im, boxes, points):
+    def drawBoxes(self, im, boxes,points):
         x1 = boxes[:,0]
         y1 = boxes[:,1]
         x2 = boxes[:,2]
@@ -243,8 +246,6 @@ class Detector:
 
             	cv2.circle(im,(int(points[i][index]),int(points[i][index+5])),3,(0,255,0),-1);
         '''
-        print('draw point {}'.format(np.array(points).shape))
-        # points = points[0]
         x3 = x1 + 0.25 * (x2 - x1)
         x4 = x2 - 0.25 * (x2 - x1)
         y3 = y1 + 0.25 * (y2 - y1)
@@ -270,7 +271,7 @@ class Detector:
     def toc(fmt="Elapsed: %s s"):
         print(fmt % (time()-_tstart_stack.pop()))
 
-    def detect_face(self, img, minsize, PNet, RNet, ONet, threshold, fastresize, factor):       
+    def detect_face(self, img, minsize, PNet, RNet, ONet, threshold, fastresize, factor, boxnum):       
         
         img2 = img.copy()
 
@@ -323,7 +324,7 @@ class Detector:
                 total_boxes = np.concatenate((total_boxes, boxes), axis=0)
 	    end = time.time();
 
-            print('PNET {}'.format(boxes.shape))
+            # print('PNET {}'.format(boxes.shape))
 
         #####
         # 1 #
@@ -332,7 +333,7 @@ class Detector:
         if numbox > 0:
             # nms
             pick = self.nms(total_boxes, 0.7, 'Union')
-            total_boxes = total_boxes[pick[:min(32,len(pick))], :]
+            total_boxes = total_boxes[pick[:min(boxnum, len(pick))], :]
             #print("[2]:",total_boxes.shape[0])
             
             # revise and convert to square
@@ -389,7 +390,7 @@ class Detector:
             
             score =  np.array([score[pass_t]]).T
             total_boxes = np.concatenate( (total_boxes[pass_t, 0:4], score), axis = 1)
-            print('RNET {}'.format(total_boxes.shape))
+            # print('RNET {}'.format(total_boxes.shape))
             
             mv = out['conv5-2'][pass_t, :].T
             if total_boxes.shape[0] > 0:
@@ -498,7 +499,7 @@ class Detector:
         new_points[:,5:] = points[:,5:] * target_h / original_h;
         return ratio, new_points;
         
-    def detect(self, frame, w, h, minsize, threshold, factor):
+    def detect(self, frame, w, h, minsize, threshold, factor, boxnum=9999):
         
         img = cv2.resize(frame, (w, h), interpolation=cv2.INTER_CUBIC);
         
@@ -511,9 +512,23 @@ class Detector:
         img_matlab[:,:,2] = img_matlab[:,:,0]
         img_matlab[:,:,0] = tmp
         
-        boundingboxes, points, verify_features = self.detect_face(img_matlab, minsize, PNet, RNet, ONet, threshold, False, factor);
+        boundingboxes, points, verify_features = self.detect_face(img_matlab, minsize, PNet, RNet, ONet, threshold, False, factor, boxnum);
 
         if len(boundingboxes) < 1:
             return  boundingboxes, points, verify_features;
-        boundingboxes ,points= self.resize_img(img, frame, boundingboxes, points);
-        return boundingboxes, points, verify_features
+        boundingboxes, points= self.resize_img(img, frame, boundingboxes, points);
+        _bbox = []
+        _point = []
+        _ftr = []
+        for idx, bbox in enumerate(boundingboxes):
+            _w = abs(bbox[0] - bbox[2])
+            _h = abs(bbox[1] - bbox[3])
+            if _w <= 4 or _h <= 4:
+                continue
+            _bbox.append(bbox)
+            _point.append(points[idx])
+            _ftr.append(verify_features[idx])
+
+        # return boundingboxes, points, verify_features
+        # return np.array(boundingboxes), np.array(points), verify_features
+        return np.array(_bbox), np.array(_point), np.array(_ftr)

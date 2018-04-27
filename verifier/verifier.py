@@ -78,6 +78,7 @@ class Verifier:
 		# dist = self.cosdist(feature,self.database[ID])
 		dists = self.dist(feature, self.database[ID], 'cosine')
                 for idx, distance in enumerate(dists):
+                    # print('distance {}'.format(distance))
                     max_idx = np.argmax(distance)
                     if distance[max_idx] > self.Threshold:
                         candidates[idx].append([self.ID_List[ID][:-1], distance[max_idx]])
@@ -116,7 +117,7 @@ class Verifier:
 	Return:
 	a scalar in (0-1) to measure the similarity between face1 and face2 
 	'''
-        if save_id and (ID is None):
+        if save_id :
             if ID is None:
                 print('input ID is empty')
                 return False
@@ -126,14 +127,17 @@ class Verifier:
         since = time.time()
         # perform face alignment
         origin_length = len(faces)
-        print('face {}'.format(faces[0].shape))
-        print('keypoint {} {}'.format(np.array(keypoints).shape, keypoints[0]))
-        faces = [alignment(faces[i], keypoints[i])
-                                                for i in range(origin_length)]
+        # faces = [np.zeros((112, 96, 3)) for f in faces if f.shape[0] == 0 or f.shape[1] == 0]
+        # for f_idx in range(origin_length):
+            # if np.array(faces[f_idx]).shape[0] == 0 or np.array(faces[f_idx]).shape[1] == 0:
+            #     faces[f_idx] = np.zeros((112, 96, 3))
+        print('original length {}'.format(origin_length))
+        faces = [alignment(faces[i], keypoints[i]) for i in range(origin_length)]
         if origin_length < cfg.max_face:
             for _ in range(cfg.max_face - origin_length):
                 faces.append(np.zeros((112, 96, 3)))
         # resize to 112x96, using default mothod 
+
         faces = np.array([(cv2.resize(x, (96, 112)) - 127.5) / 128.0 for x in faces])
         faces = faces.transpose(0, 3, 1, 2)
 	# TODO : here should be take carefully 
@@ -145,10 +149,10 @@ class Verifier:
                 ID_bucket = os.path.join(self.database_root, _id+'.npy')
                 if os.path.exists(ID_bucket):
                     prev_ftrs = np.load(ID_bucket)
-                    prev_ftrs = np.append(prev_ftrs, _ftr, axis=0)
+                    prev_ftrs = np.append(prev_ftrs, [_ftr], axis=0)
                     np.save(ID_bucket, prev_ftrs)
                 else:
-	            np.save(ID_bucket, _ftr)
+	            np.save(ID_bucket, [_ftr])
 
 	        # add ID to ID_List
                 if self.ID_List.count(_id+'\n') == 0:
@@ -157,7 +161,7 @@ class Verifier:
                     with open(self.ID_path, 'r') as f:
                         self.ID_List = f.readlines()
 	    return True 
-	else :
+	else:
             if len(ftrs.shape) <= 1:
                 ftrs = ftrs[np.newaxis, :]
 	    ID_Name = self.getid(ftrs)
