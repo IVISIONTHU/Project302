@@ -94,7 +94,10 @@ class Verifier:
                         candidates[idx].append([ID[:-1], distance[max_idx]])
                         
         ID_Name = []
-        print('candidates {} | shape {}'.format(candidates, np.array(candidates).shape))
+        # print('candidates {} | shape {}'.format(candidates, np.array(candidates).shape))
+        print('Candidates')
+        for cand in candidates:
+            print(cand)
         for i in range(len(feature)):
             if len(candidates[i]) <= 0:
                 ID_Name.append(None)
@@ -133,6 +136,7 @@ class Verifier:
             #     faces[f_idx] = np.zeros((112, 96, 3))
         print('original length {}'.format(origin_length))
         faces = [alignment(faces[i], keypoints[i]) for i in range(origin_length)]
+        cv2.imshow('aligned', cv2.resize(faces[0], (96, 112)))
         if origin_length < cfg.max_face:
             for _ in range(cfg.max_face - origin_length):
                 faces.append(np.zeros((112, 96, 3)))
@@ -141,7 +145,7 @@ class Verifier:
         faces = np.array([(cv2.resize(x, (96, 112)) - 127.5) / 128.0 for x in faces])
         faces = faces.transpose(0, 3, 1, 2)
 	# TODO : here should be take carefully 
-	ftrs = self.net.forward(data=faces)['fc5']
+        ftrs = self.net.forward(data=faces)['fc5'][:origin_length]
 	# if ID==null, we search the database to do verification 
 	# else we save the ID and corresponding feature vector
 	if save_id:

@@ -76,6 +76,7 @@ def add_identity():
         # json.dump(face_dict, f)
         face_dict = json.load(f)
     for key, value in face_dict.items():
+        print('key {} | value {}'.format(key, value))
         key_list = []
         value_list = []
         if not isinstance(value, list):

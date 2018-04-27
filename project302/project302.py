@@ -36,7 +36,7 @@ class Project302:
 	    self.verifier = verifier.Verifier(model_proto, 
                                               model_weight, 
                                               database_root='../verifier/Database',
-                                              Threshold=0.2)
+                                              Threshold=0.32)
 	    print('verifier init success')
 
         def add_identity_to_database(self, img, ID, detect_before_id=False):
@@ -153,12 +153,14 @@ class Project302:
 
         def draw(self, image, bboxes, points, ids):
 	    image = self.detector.drawBoxes(image, bboxes, points)
+            print('ids {}'.format(ids))
             for _id, _bbox in zip(ids, bboxes):
-                if _id is not None:
-                    cv2.putText(image, _id, 
-                        (int((_bbox[0] + _bbox[3])/2), int(_bbox[1])), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 
-                        1, (0, 255, 0), 2)
+                if _id is None:
+                    continue
+                cv2.putText(image, _id, 
+                    (int((_bbox[0] + _bbox[3])/2), int(_bbox[1])), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 
+                    1, (0, 255, 0), 2)
             return image
             
 
@@ -263,6 +265,7 @@ class Project302:
                     _point = np.maximum(_point, 0.)
                     if self.do_verification and self.frame % self.detect_interval == 0:
                         faces = [image[bbox[1]:bbox[3], bbox[0]:bbox[2]] for bbox in _bbox.astype(np.int)]
+                        cv2.imshow('detected', faces[0])
                         _points = np.array([[[points[i][j] - _bbox[i][0], points[i][j+5] - _bbox[i][1]] 
                                          for j in range(5)] for i in range(len(_bbox))])
                         ids = self.verification(faces, _points)
