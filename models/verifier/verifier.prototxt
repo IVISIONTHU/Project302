@@ -1,5 +1,6 @@
 name: "SpherefaceNet-20"
 input: "data"
+# input_dim: 1
 input_dim: 8
 input_dim: 3
 input_dim: 112

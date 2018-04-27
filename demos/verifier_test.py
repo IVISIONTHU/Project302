@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-import cv2
-import os
-import sys
+import cv2, os, sys
 import init_path
 from project302 import Project302
+from alignment import alignment
 import matplotlib.pyplot as plt 
 import config as cfg
 import caffe 
 import numpy as np
 import time 
+import json
 
 #img_dir ='/data2/detection/py-R-FCN-171219/data/capture302/1_pic'; 
 #img_names = os.listdir(img_dir);
@@ -23,7 +23,7 @@ Here we initialize the project302
 4. surveillance   
 ''' 
 
-project = Project302(1, 8, do_verify=True)
+project = Project302(detect_interval=1, verify_interval=20, max_face=8, do_verification=True)
 
 project.init_detector(cfg.detector_mtcnn)
 project.init_verifier('../models/verifier/verifier.prototxt', '../models/verifier/verifier.caffemodel')
@@ -56,11 +56,26 @@ def show_result(image,dets):
 	return image
 
 def add_identity():
-    face_dict = {'Deng Wei':['deng_wei.jpg', 'deng_wei-2.jpg'], 
+    '''
+    face_dict = {'Deng Wei':'deng_wei-2.jpg', 
                  'Shi Yigong':'shi_yigong.jpg',
                  'Xue Qikun':['xue_qikun.jpg', 'xue_qikun-2.jpg'],
                  'Zhang Mu':'zhang_mu.jpg',
-                 'Wang Mingzhi':'wang_mingzhi.jpg'}
+                 'Wang Mingzhi':'wang_mingzhi.jpg',
+                 'Da long':'dalong_0.jpg',
+                 'Wang Qian':'wangq_0.jpg',
+                 'Chen Jining':'chen_jining.jpg',
+                 'Chen Xi':'chen_xi.jpg',
+                 'Gu Binglin':'gu_binglin.jpg',
+                 'He Meiying':'he_meiying.jpg',
+                 'Wang Dazhong':['wang_dazhong.jpg', 'wang_dazhong-2.jpg'],
+                 'Wang Mingzhi':['wang_mingzhi.jpg'],
+                 'Zhang Xiaowen':'zhang_xiaowen.jpg'}
+    '''
+    with open(os.path.join('headteachers', 'name_list.json'), 'r') as f:
+        # json.dump(face_dict, f)
+        face_dict = json.load(f)
+    kp = open('keypoints', 'w')
     for key, value in face_dict.items():
         if not isinstance(value, list):
             value = [value]
@@ -70,25 +85,36 @@ def add_identity():
             img = cv2.imread(img_path)
             if img is None:
                 print('No face found in {}'.format())
-                raise FileNotFoundError
-            faces = project.get_detected_face(img)
+                continue
+                # raise FileNotFoundError
+            faces, keypoints = project.get_detected_face(img)
             for idx, face in enumerate(faces):
                 cv2.imwrite('{}_face_{}.jpg'.format(img_n[:-4], idx), face)
+                aligned_face = alignment(face, keypoints[idx])
+                cv2.imwrite('{}_aligned_face_{}.jpg'.format(img_n[:-4], idx), aligned_face)
+                kp.write('{} {}\n'.format(img_n, keypoints[idx]))
             project.add_identity_to_database(img, key, detect_before_id=True)
+    kp.close()
 
 def verifier_test():
     query_faces = []
+    query_keypoints = []
+
     img = cv2.imread(os.path.join('headteachers', 'deng_wei-3.jpg'))
-    query_faces.append(project.get_detected_face(img)[0])
-    img = cv2.imread(os.path.join('headteachers', 'xue_qikun-3.jpg'))
-    query_faces.append(project.get_detected_face(img)[0])
-    # cv2.imwrite('query_1.jpg', query_faces[0])
-    # cv2.imwrite('query_2.jpg', query_faces[1])
+    face, keypoint = project.get_detected_face(img)
+    query_faces.append(face[0])
+    query_keypoints.append(keypoint[0])
+
+    img = cv2.imread(os.path.join('headteachers', 'you_zheng.jpg'))
+    face, keypoint = project.get_detected_face(img)
+    query_faces.append(face[0])
+    query_keypoints.append(keypoint[0])
     padd_num = 8 - len(query_faces)
     for _ in range(padd_num):
-        query_faces.append(np.zeros((96, 112, 3)))
+        query_faces.append(np.random.random((96, 112, 3)))
+        query_keypoints.append(np.random.random((5, 2)))
     start = time.time()
-    result = project.verification(np.array(query_faces))
+    result = project.verification(query_faces, query_keypoints)
     print(result)
     print('Time {}'.format(time.time() - start))
 
@@ -98,8 +124,42 @@ def get_faces():
     for idx, face in enumerate(faces):
         cv2.imwrite('face_{}.jpg'.format(idx), face)
 
+def online_test():
+    frame_index = 1;
+    cap = cv2.VideoCapture(cfg.CAMERA_INDEX);
+    cap.set(3, 1920);
+    cap.set(4, 1080);
+    ret ,frame = cap.read();
+    frame_index = 1;
+    while(ret):
+	    start = time.time();
+	    ret,frame = cap.read();	
+	    #frame = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_CUBIC)
+            if not ret:
+                continue;
+            if frame_index % 3    !=0:
+                frame_index = frame_index +1 ;
+                continue;
+	    #cv2.imshow('test',frame);
+	    # image = project.Surveillance(frame);
+            face, keypoint = project.get_detected_face(frame, single_face=True)
+            result = project.verification(np.array(face), keypoint)
+	    frame_index = frame_index + 1;
+	    end = time.time();
+	    print('log project time {} | ID {}\n'.format(end - start, result));
+	    #image = image[:,:,::-1]
+	    #image = cv2.resize(image, (1080, 960),interpolation=cv2.INTER_CUBIC)
+	    window_name = 'test_win'
+	    # cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+	    cv2.namedWindow(window_name)
+	    # cv2.setWindowProperty(window_name,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+	    cv2.imshow(window_name, frame);
+	    cv2.waitKey(33);
+
+
 if __name__ == '__main__':
     verifier_test()
+    # online_test()
     # add_identity()
     # get_faces()
 	

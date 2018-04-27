@@ -31,14 +31,16 @@ class Detector:
 		    tmp_box[tmp_index,:] = self.bbox_cache[index2,:];
                     tmp_index = tmp_index + 1;
                     break; 
-                else :
+                else:
                     tmp_box[tmp_index,:] = bboxes[index,:];
                     tmp_index = tmp_index + 1;
                     break;
         self.bbox_cache = tmp_box[:tmp_index,:];
-        #self.bbox_cache = bboxes;
+        # self.bbox_cache = bboxes;
+
     def UpdateImageCache(self, image):
         self.image_cache = image;
+
     def UpdatePointCache(self, points, Threshold):
         if self.point_cache.shape[0] < 1:
             self.point_cache = points;
@@ -229,7 +231,7 @@ class Detector:
 
 
 
-    def drawBoxes(self, im, boxes,points):
+    def drawBoxes(self, im, boxes, points):
         x1 = boxes[:,0]
         y1 = boxes[:,1]
         x2 = boxes[:,2]

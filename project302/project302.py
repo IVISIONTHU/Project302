@@ -6,15 +6,16 @@ import numpy as np
 import config as cfg
 
 class Project302:
-	def __init__(self,detect_interval,max_face,show_result = False,do_verify = False):
+	def __init__(self, detect_interval, verify_interval, max_face, show_result=False, do_verification=False):
 		print('init Project302\n');
 		self.detect_interval = detect_interval;
+		self.verify_interval = verify_interval;
 		self.max_face = max_face;
 		self.frame = 0;
 		self.detector = None;
 		#self.verifier = None;
 		self.show_result =show_result;
-		#self.do_verify = do_verify;
+		self.do_verification = do_verification
 		# load detection & tracking parameters
 		self.detect_w = cfg.detect_w;
 		self.detect_h = cfg.detect_h;
@@ -33,30 +34,35 @@ class Project302:
 	    self.verifier = verifier.Verifier(model_proto, 
                                               model_weight, 
                                               database_root='../verifier/Database',
-                                              Threshold=0.3)
+                                              Threshold=0.6)
 	    print('verifier init success')
 
         def add_identity_to_database(self, img, ID, detect_before_id=False):
             if detect_before_id:
-                img = self.get_detected_face(img, single_face=True)
-            status = self.verifier.Verifier([img], save_id=True, ID=ID)
+                img, points = self.get_detected_face(img, single_face=True)
+            status = self.verifier.Verifier([img], points, save_id=True, ID=ID)
             if status:
                 print('{} Identity addition succeed'.format(ID))
             return
 
-        def verification(self, img):
-            if len(img.shape) == 3:
+        def verification(self, img, keypoint):
+            # print('img shape {}'.format(np.array(img).shape))
+            # print('keypoint shape {}'.format(np.array(keypoint).shape))
+            if len(np.array(img).shape) == 3:
                 img = img[np.newaxis, :]
-            ids = self.verifier.Verifier(img)
+            ids = self.verifier.Verifier(img, keypoint)
             return ids
 
         def get_detected_face(self, img, single_face=False):
-            bboxes, _, _ = self.detector.detect(img, 
+            bboxes, points, _ = self.detector.detect(img, 
                                 self.detect_w, 
                                 self.detect_h, 
                                 self.detect_minsize, 
                                 self.detect_threshold, 
                                 self.detect_factor)
+
+            points = np.array([[[points[j][i] - bboxes[j][0], points[j][i+5] - [bboxes[j][1]]] 
+                                            for i in range(5)] for j in range(len(points))])
             if len(bboxes) < 1:
                 print('No face found in image')
                 # raise TypeError
@@ -65,11 +71,11 @@ class Project302:
                     print('Containing multiple faces')
                     # raise TypeError
                 bboxes = bboxes[0].astype(np.int)
-                return img[bboxes[1]:bboxes[3], bboxes[0]:bboxes[2], :]
+                img = img[bboxes[1]:bboxes[3], bboxes[0]:bboxes[2], :]
+                return img, points
             else:
                 imgs = [img[bbox[1]:bbox[3], bbox[0]:bbox[2], :] for bbox in bboxes.astype(np.int)]
-                return imgs
-
+                return imgs, points
 
         def Filter(self,bbox,points,features):
             if bbox.shape[0] < 1:
@@ -81,6 +87,7 @@ class Project302:
                     conf = bbox[i][4];
                     index = i;
             return bbox[index,:],points[index,:],features[index,:];
+
 	def Surveillance(self, image):
 		'''
 		This is an interface for surveillance project
@@ -164,6 +171,12 @@ class Project302:
 		verify_features is an 256*n array where n represents the number of bounding boxes
 		
 		'''
-		
+                if self.do_verification and self.frame % self.verify_interval == 0 and len(bboxes) >= 1:
+                    faces = [image[bbox[1]:bbox[3], bbox[0]:bbox[2]] for bbox in bboxes.astype(np.int)]
+                    points = [[points[i][j] - bboxes[i][0], points[i][j+5] - bboxes[i][1]] 
+                                    for i in range(len(bboxes)) for j in range(5)]
+                    result = self.verification(faces[0], points[0])
+                    pass
+
 		return image_result;
 	

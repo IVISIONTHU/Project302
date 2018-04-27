@@ -22,9 +22,9 @@ Here we initialize the project302
 4. surveillance   
 ''' 
 
-project = Project302(detect_interval=4, verify_interval=24, max_face=8, do_verification=True)
+project = Project302(4,8);
 
-project.init_detector(cfg.detector_mtcnn)
+project.init_detector(cfg.detector_mtcnn);
 
 #project.init_tracker(cfg.tracker_goturn+'.prototxt',cfg.tracker_goturn+ '.caffemodel');
 #print('init tracker success');

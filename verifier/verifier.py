@@ -5,13 +5,13 @@ from __future__ import print_function, division
 import numpy as np
 import os, sys, time
 import cv2
+from alignment import alignment
 
 FEATURE_LENGTH = 512
 MAX_MEMORY = 1000
 TEST = True
 
 if TEST:
-    # caffe_path = '../caffe/python'
     caffe_path = '/usr/local/caffe/python'
     import sys
     sys.path.insert(0, caffe_path)
@@ -24,6 +24,7 @@ class Verifier:
         self.net = caffe.Net(model_proto, model_weight, caffe.TEST)
         self.database_root = database_root
 	self.ID_path = os.path.join(database_root, 'ID_List')
+        self.id_cache = None
         # [id, ftrs]
 	if not os.path.exists(self.ID_path):
 	    open(self.ID_path, 'w').close()
@@ -32,7 +33,6 @@ class Verifier:
 	self.Threshold = Threshold
         # if ID_List length < MAX_MEMORY, we just directly load them into the memory
 	if len(self.ID_List) < MAX_MEMORY:
-	    # self.database = np.zeros((len(self.ID_List), FEATURE_LENGTH))
             self.database = [[] for _ in range(len(self.ID_List))]
 	    ID_index = 0
 	    for idx, ID in enumerate(self.ID_List):
@@ -60,7 +60,6 @@ class Verifier:
         elif dist_type == 'cosine':
             ftr1 = np.expand_dims(ftr1 / np.sqrt(np.sum(ftr1 ** 2, 1, keepdims=True)), 1)
             ftr2 = np.expand_dims(ftr2 / np.sqrt(np.sum(ftr2 ** 2, 1, keepdims=True)), 0)
-            # print('matrix {} {}'.format(ftr1.shape, ftr2.shape))
             return np.sum(ftr1 * ftr2, 2)
         elif dist_type == 'euclidean_norm':
             ftr1 = ftr1 / np.sqrt(np.sum(ftr1 ** 2))
@@ -77,7 +76,6 @@ class Verifier:
 	    for ID in range(len(self.database)):
 		# dist = self.cosdist(feature,self.database[ID])
 		dists = self.dist(feature, self.database[ID], 'cosine')
-                print('ID {} | distances {} {}'.format(self.ID_List[ID][:-1], dists, dists.shape))
                 for idx, distance in enumerate(dists):
                     max_idx = np.argmax(distance)
                     if distance[max_idx] > self.Threshold:
@@ -104,7 +102,11 @@ class Verifier:
 
 	return ID_Name
 
-    def Verifier(self, faces, save_id=False, ID=None):
+    def drawID(self, image, bboxes, ids):
+
+        return
+
+    def Verifier(self, faces, keypoints, save_id=False, ID=None):
 	'''
 	Args:
 	faces: a list of cv2 images
@@ -116,33 +118,33 @@ class Verifier:
         if save_id is None and ID is None:
             print('input ID is empty')
             return False
-	since = time.time()
-	# ID_Name = ''
-	# resize to 112x96, using default mothod 
-	faces = np.array([(cv2.resize(x, (96, 112)) - 127.5) / 128.0 for x in faces])
-	faces = faces.transpose(0, 3, 1, 2)
-        print('faces shape {}'.format(faces.shape))
+        since = time.time()
+        # perform face alignment
+        faces = [alignment(faces[i], keypoints[i])
+                                                for i in range(len(faces))]
+        # resize to 112x96, using default mothod 
+        faces = np.array([(cv2.resize(x, (96, 112)) - 127.5) / 128.0 for x in faces])
+        faces = faces.transpose(0, 3, 1, 2)
 	# TODO : here should be take carefully 
-	# ftrs = self.net.forward(data=faces)['fc5'][0].copy()
 	ftrs = self.net.forward(data=faces)['fc5']
-        # print('network output {}'.format(ftrs.shape))
-        # ftrs = ftrs[0]
 	# if ID==null, we search the database to do verification 
 	# else we save the ID and corresponding feature vector
 	if save_id:
             ID_bucket = os.path.join(self.database_root, ID+'.npy')
             if os.path.exists(ID_bucket):
                 prev_ftrs = np.load(ID_bucket)
-                prev_ftrs = np.append(prev_ftrs, [ftrs], axis=0)
+                prev_ftrs = np.append(prev_ftrs, ftrs, axis=0)
                 np.save(ID_bucket, prev_ftrs)
             else:
-	        np.save(ID_bucket, [ftrs])
+	        np.save(ID_bucket, ftrs)
 
 	    # add ID to ID_List
             if self.ID_List.count(ID+'\n') == 0:
                 with open(self.ID_path, 'a') as f:
                     f.write(ID+'\n')
                     f.flush()
+                with open(self.ID_path, 'r') as f:
+                    self.ID_List = f.readlines()
 	    return True 
 	else :
             if len(ftrs.shape) <= 1:
