@@ -6,6 +6,7 @@ import numpy as np
 import os, sys, time
 import cv2
 from alignment import alignment
+import config as cfg
 
 FEATURE_LENGTH = 512
 MAX_MEMORY = 1000
@@ -24,7 +25,7 @@ class Verifier:
         self.net = caffe.Net(model_proto, model_weight, caffe.TEST)
         self.database_root = database_root
 	self.ID_path = os.path.join(database_root, 'ID_List')
-        self.id_cache = None
+        self.id_cache = np.array([])
         # [id, ftrs]
 	if not os.path.exists(self.ID_path):
 	    open(self.ID_path, 'w').close()
@@ -115,13 +116,23 @@ class Verifier:
 	Return:
 	a scalar in (0-1) to measure the similarity between face1 and face2 
 	'''
-        if save_id is None and ID is None:
-            print('input ID is empty')
-            return False
+        if save_id and (ID is None):
+            if ID is None:
+                print('input ID is empty')
+                return False
+            if len(ID) != len(faces):
+                print('Number of IDs and Number of faces do not match')
+                return False
         since = time.time()
         # perform face alignment
+        origin_length = len(faces)
+        print('face {}'.format(faces[0].shape))
+        print('keypoint {} {}'.format(np.array(keypoints).shape, keypoints[0]))
         faces = [alignment(faces[i], keypoints[i])
-                                                for i in range(len(faces))]
+                                                for i in range(origin_length)]
+        if origin_length < cfg.max_face:
+            for _ in range(cfg.max_face - origin_length):
+                faces.append(np.zeros((112, 96, 3)))
         # resize to 112x96, using default mothod 
         faces = np.array([(cv2.resize(x, (96, 112)) - 127.5) / 128.0 for x in faces])
         faces = faces.transpose(0, 3, 1, 2)
@@ -130,27 +141,27 @@ class Verifier:
 	# if ID==null, we search the database to do verification 
 	# else we save the ID and corresponding feature vector
 	if save_id:
-            ID_bucket = os.path.join(self.database_root, ID+'.npy')
-            if os.path.exists(ID_bucket):
-                prev_ftrs = np.load(ID_bucket)
-                prev_ftrs = np.append(prev_ftrs, ftrs, axis=0)
-                np.save(ID_bucket, prev_ftrs)
-            else:
-	        np.save(ID_bucket, ftrs)
+            for _ftr, _id in zip(ftrs, ID):
+                ID_bucket = os.path.join(self.database_root, _id+'.npy')
+                if os.path.exists(ID_bucket):
+                    prev_ftrs = np.load(ID_bucket)
+                    prev_ftrs = np.append(prev_ftrs, _ftr, axis=0)
+                    np.save(ID_bucket, prev_ftrs)
+                else:
+	            np.save(ID_bucket, _ftr)
 
-	    # add ID to ID_List
-            if self.ID_List.count(ID+'\n') == 0:
-                with open(self.ID_path, 'a') as f:
-                    f.write(ID+'\n')
-                    f.flush()
-                with open(self.ID_path, 'r') as f:
-                    self.ID_List = f.readlines()
+	        # add ID to ID_List
+                if self.ID_List.count(_id+'\n') == 0:
+                    with open(self.ID_path, 'a') as f:
+                        f.write(_id+'\n')
+                    with open(self.ID_path, 'r') as f:
+                        self.ID_List = f.readlines()
 	    return True 
 	else :
             if len(ftrs.shape) <= 1:
                 ftrs = ftrs[np.newaxis, :]
 	    ID_Name = self.getid(ftrs)
-	    return ID_Name
+            return ID_Name[:origin_length]
 
 def UNIT():
 	caffe.set_mode_gpu()

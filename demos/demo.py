@@ -22,9 +22,12 @@ Here we initialize the project302
 4. surveillance   
 ''' 
 
-project = Project302(detect_interval=4, verify_interval=24, max_face=8, do_verification=True)
+project = Project302(detect_interval=cfg.detect_interval, 
+                     max_face=cfg.max_face,
+                     do_verification=True);
 
-project.init_detector(cfg.detector_mtcnn)
+project.init_detector(cfg.detector_mtcnn);
+project.init_verifier('../models/verifier/verifier.prototxt', '../models/verifier/verifier.caffemodel')
 
 #project.init_tracker(cfg.tracker_goturn+'.prototxt',cfg.tracker_goturn+ '.caffemodel');
 #print('init tracker success');
@@ -45,7 +48,7 @@ else:
 
 def show_result(image,dets):
 	#image = image[:,:,(2,1,0)];
-	if(np.size(dets) == 0):
+	if(np.size(dets) ==0):
 		return image
 	for index in xrange(np.size(dets,0)):
 		bbox = dets[index];
@@ -72,24 +75,23 @@ def show_result(image,bboxes):
 '''
 def demo():
 	print('\n\n\n\n\n\n\n\n\n');
-	frame_index = 1;
 	cap = cv2.VideoCapture(cfg.CAMERA_INDEX);
-	cap.set(3, 1920);
-	cap.set(4, 1080);
-	ret ,frame = cap.read();
-        frame_index = 1;
+	# cap.set(3, 1920);
+	# cap.set(4, 1080);
+	ret, frame = cap.read();
+        frame_index = cfg.frame_skip;
 	while(ret):
 		start = time.time();
 		ret,frame = cap.read();	
 		#frame = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_CUBIC)
                 if not ret:
                     continue;
-                if frame_index % 3    !=0:
-                    frame_index = frame_index +1 ;
+		if frame_index != cfg.frame_skip:
+                    frame_index = frame_index + 1;
                     continue;
 		#cv2.imshow('test',frame);
 		image = project.Surveillance(frame);
-		frame_index = frame_index + 1;
+		frame_index = 0;
 		end = time.time();
 		print('log project time = {}\n'.format(end - start));
 		#image = image[:,:,::-1]

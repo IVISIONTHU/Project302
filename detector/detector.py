@@ -243,6 +243,8 @@ class Detector:
 
             	cv2.circle(im,(int(points[i][index]),int(points[i][index+5])),3,(0,255,0),-1);
         '''
+        print('draw point {}'.format(np.array(points).shape))
+        # points = points[0]
         x3 = x1 + 0.25 * (x2 - x1)
         x4 = x2 - 0.25 * (x2 - x1)
         y3 = y1 + 0.25 * (y2 - y1)

@@ -75,11 +75,25 @@ def add_identity():
     with open(os.path.join('headteachers', 'name_list.json'), 'r') as f:
         # json.dump(face_dict, f)
         face_dict = json.load(f)
-    kp = open('keypoints', 'w')
     for key, value in face_dict.items():
+        key_list = []
+        value_list = []
         if not isinstance(value, list):
-            value = [value]
-        print('add {}:{}'.format(key, value))
+            key_list.append(key)
+            value_list.append(value)
+        else:
+            for i in range(len(value)):
+                key_list.append(key)
+                value_list.append(value[i])
+        # print('add {}:{}'.format(key, value))
+        img_list = [cv2.imread(os.path.join('headteachers', img_n)) for img_n in value_list]
+        # face_list = [None for _ in range(len(img_list))]
+        # point_list = [None for _ in range(len(img_list))]
+        # for idx, img in enumerate(img_list):
+        #     face_list[idx], point_list[idx] = project.get_detected_face(img, single_face=True)
+        project.add_identity_to_database(img_list, key_list, detect_before_id=True)
+
+        '''
         for img_n in value:
             img_path = os.path.join('headteachers', img_n)
             img = cv2.imread(img_path)
@@ -92,9 +106,8 @@ def add_identity():
                 cv2.imwrite('{}_face_{}.jpg'.format(img_n[:-4], idx), face)
                 aligned_face = alignment(face, keypoints[idx])
                 cv2.imwrite('{}_aligned_face_{}.jpg'.format(img_n[:-4], idx), aligned_face)
-                kp.write('{} {}\n'.format(img_n, keypoints[idx]))
             project.add_identity_to_database(img, key, detect_before_id=True)
-    kp.close()
+        '''
 
 def verifier_test():
     query_faces = []
@@ -143,10 +156,18 @@ def online_test():
 	    #cv2.imshow('test',frame);
 	    # image = project.Surveillance(frame);
             face, keypoint = project.get_detected_face(frame, single_face=True)
-            result = project.verification(np.array(face), keypoint)
+            if face is None:
+                continue
+            IDs = ['' for _ in range(len(face))]
+            for i in range(0, len(face), cfg.verification_batch_size):
+                t1 = i
+                t2 = min(i+cfg.verification_batch_size, len(face))
+                IDs[t1:t2] = project.verification(np.array(face[t1:t2]), keypoint[t1:t2])
+
+            # result = project.verification(np.array(face), keypoint)
 	    frame_index = frame_index + 1;
 	    end = time.time();
-	    print('log project time {} | ID {}\n'.format(end - start, result));
+	    print('log project time {} | ID {}\n'.format(end - start, IDs));
 	    #image = image[:,:,::-1]
 	    #image = cv2.resize(image, (1080, 960),interpolation=cv2.INTER_CUBIC)
 	    window_name = 'test_win'
@@ -158,8 +179,8 @@ def online_test():
 
 
 if __name__ == '__main__':
-    verifier_test()
+    # verifier_test()
     # online_test()
-    # add_identity()
+    add_identity()
     # get_faces()
 	

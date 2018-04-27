@@ -6,10 +6,9 @@ import numpy as np
 import config as cfg
 
 class Project302:
-	def __init__(self, detect_interval, verify_interval, max_face, show_result=False, do_verification=False):
+	def __init__(self, detect_interval, max_face, show_result=False, do_verification=False):
 		print('init Project302\n');
 		self.detect_interval = detect_interval;
-		self.verify_interval = verify_interval;
 		self.max_face = max_face;
 		self.frame = 0;
 		self.detector = None;
@@ -38,11 +37,23 @@ class Project302:
 	    print('verifier init success')
 
         def add_identity_to_database(self, img, ID, detect_before_id=False):
-            if detect_before_id:
-                img, points = self.get_detected_face(img, single_face=True)
-            status = self.verifier.Verifier([img], points, save_id=True, ID=ID)
-            if status:
-                print('{} Identity addition succeed'.format(ID))
+            if len(np.array(img).shape) == 3:
+                if detect_before_id:
+                    img, points = self.get_detected_face(img, single_face=True)
+                status = self.verifier.Verifier([img], points, save_id=True, ID=ID)
+            else:
+                if detect_before_id:
+                    face_list = [None for _ in range(len(img))]
+                    point_list = [None for _ in range(len(img))]
+                    for idx, _img in enumerate(img):
+                        face_list[idx], point_list[idx] = self.get_detected_face(_img, single_face=True)
+                    img = face_list
+                for i in range(0, len(img), cfg.verification_batch_size):
+                    t1 = i
+                    t2 = min(i+cfg.verification_batch_size, len(img))
+                    status = self.verifier.Verifier(img[t1:t2], point_list[t1:t2], save_id=True, ID=ID[t1:t2])
+                    if not status:
+                        print('{} Identity addition failed'.format(ID[t1:t2]))
             return
 
         def verification(self, img, keypoint):
@@ -66,6 +77,7 @@ class Project302:
             if len(bboxes) < 1:
                 print('No face found in image')
                 # raise TypeError
+                return None, None
             if single_face:
                 if len(bboxes) > 1:
                     print('Containing multiple faces')
@@ -88,6 +100,55 @@ class Project302:
                     index = i;
             return bbox[index,:],points[index,:],features[index,:];
 
+        def UpdateCache(self, bboxes, points, ids=None, bbox_threshold=0.8, point_threshold=10.0):
+            print('ids {}'.format(ids))
+            if self.detector.bbox_cache.shape[0] < 1:
+                self.detector.bbox_cache = bboxes
+                self.detector.point_cache = points
+                if ids is not None:
+                    self.verifier.id_cache = ids
+                return
+            tmp_box = bboxes;
+            if ids is not None:
+                tmp_id = ids
+            tmp_index = 0;
+            print(bboxes.shape[0])
+            for index in range(bboxes.shape[0]):
+                FOUND = False
+                for index2 in range(self.detector.bbox_cache.shape[0]):
+                    if (self.detector.IOU(bboxes[index,:], self.detector.bbox_cache[index2,:]) > bbox_threshold):
+		        tmp_box[tmp_index,:] = self.detector.bbox_cache[index2, :]
+                        if ids is not None:
+                            tmp_id[tmp_index] = self.verifier.id_cache[index2]
+                        tmp_index = tmp_index + 1;
+                        FOUND = True
+                        break; 
+                if not FOUND:
+                    tmp_box[tmp_index,:] = bboxes[index,:]
+                    if ids is not None:
+                        tmp_id[tmp_index] = ids[index]
+                    tmp_index = tmp_index + 1;
+
+            self.detector.bbox_cache = tmp_box[:tmp_index, :];
+            if ids is not None:
+                self.verifier.id_cache = tmp_id[:tmp_index]
+
+            tmp_index = 0;
+            tmp_point = points
+            for index in range(bboxes.shape[0]):
+                FOUND = False
+                for index2 in range(self.detector.point_cache.shape[0]):
+                    if (self.detector.distance(points[index,:],self.detector.point_cache[index2,:]) < point_threshold):
+		        tmp_point[tmp_index,:] = self.detector.point_cache[index2,:];
+                        tmp_index = tmp_index + 1;
+                        FOUND = True
+                        break; 
+                if not FOUND:
+                    tmp_point[tmp_index,:] = points[index,:];
+                    tmp_index = tmp_index + 1;
+            self.detector.point_cache = tmp_point[:tmp_index,:];
+            
+
 	def Surveillance(self, image):
 		'''
 		This is an interface for surveillance project
@@ -108,10 +169,10 @@ class Project302:
 			bboxes, points, verify_features = self.detector.detect(image, self.detect_w, self.detect_h, self.detect_minsize, self.detect_threshold, self.detect_factor);
 			face_index = bboxes.shape[0];
                         #self.detector.UpdateBBoxCache(bboxes); 
-			if (len(bboxes) >= 1):
-				self.detector.UpdateBBoxCache(bboxes[:min(face_index,self.max_face),:], 0.8); 
-				self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 5); 
-				image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, points);
+			# if (len(bboxes) >= 1):
+			# 	self.detector.UpdateBBoxCache(bboxes[:min(face_index,self.max_face),:], 0.8); 
+			# 	self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 5); 
+			# 	image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, points);
 			#if (len(bboxes) < 1):
 			#    image_result = image.copy();
 			#else:
@@ -161,22 +222,34 @@ class Project302:
 					points[face_index, 5:10] = tmp_points[5:10] + crop_y1;
 					verify_features[face_index,:] = tmp_verify_features;
                                         face_index = face_index + 1;				
+                                '''
 				if (len(bboxes) >= 1):
 					self.detector.UpdateBBoxCache(bboxes[:min(face_index,self.max_face),:], 0.8); 
 					self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 10); 
 					image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, points);
+                                '''
 							
 		# verify
 		'''
 		verify_features is an 256*n array where n represents the number of bounding boxes
 		
 		'''
-                if self.do_verification and self.frame % self.verify_interval == 0 and len(bboxes) >= 1:
-                    faces = [image[bbox[1]:bbox[3], bbox[0]:bbox[2]] for bbox in bboxes.astype(np.int)]
-                    points = [[points[i][j] - bboxes[i][0], points[i][j+5] - bboxes[i][1]] 
-                                    for i in range(len(bboxes)) for j in range(5)]
-                    result = self.verification(faces[0], points[0])
-                    pass
+		if (len(bboxes) >= 1):
+                    _bbox = bboxes[:min(face_index, self.max_face),:]
+                    _point = points[:min(face_index, self.max_face),:]
+                    if self.do_verification and self.frame % self.detect_interval == 0:
+                        faces = [image[bbox[1]:bbox[3], bbox[0]:bbox[2]] for bbox in _bbox.astype(np.int)]
+                        _points = np.array([[[points[i][j] - _bbox[i][0], points[i][j+5] - _bbox[i][1]] 
+                                         for j in range(5)] for i in range(len(_bbox))])
+                        ids = self.verification(np.array(faces), _points)
+                        print('id -{}'.format(ids))
+                        # _id = ids[:min(face_index, self.max_face),:]
+		        self.UpdateCache(_bbox, _point, np.array(ids), 0.8, 10)
+                    else:
+		        self.UpdateCache(_bbox, _point, bbox_threshold=0.8, point_threshold=10)
+
+		    # self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 10); 
+		    # image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, points)
+		    image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, self.detector.point_cache)
 
 		return image_result;
-	

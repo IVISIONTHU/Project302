@@ -16,11 +16,16 @@ GPU_DEVICE = 0;
 
 CAMERA_INDEX = 0;
 
+max_face = 8;
+
+frame_skip = 2
 # parameters for detection
 
 detect_w = 320; # width of input image
 
 detect_h = 240; # height of input image
+
+detect_interval = 4;
 
 detect_minsize = 30 # minsize of image pyramid
 
@@ -34,6 +39,14 @@ track_minsize = 20 # minsize of image pyramid
 track_threshold = [0.6, 0.7, 0.7] # thresholds for P-Net, R-Net and O-Net
 
 track_factor = 0.4 # resizing factor of image pyramid
+
+track_boxnum = 20
+
+track_crop = 2.5
+
+point_thresh = 30
+
+# parameters for verification
 
 
 
