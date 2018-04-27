@@ -24,8 +24,7 @@ Here we initialize the project302
 
 project = Project302(detect_interval=cfg.detect_interval, 
                      max_face=cfg.max_face,
-                     do_verification=True);
-                     # do_verification=False);
+                     do_verification=True)
 
 project.init_detector(cfg.detector_mtcnn);
 project.init_verifier('../models/verifier/verifier.prototxt', '../models/verifier/verifier.caffemodel')
@@ -43,7 +42,7 @@ frame_height = 480;
 # SET CAFFE
 if (cfg.GPU_MODE):
 	caffe.set_mode_gpu();
-	caffe.set_device(0);
+	caffe.set_device(cfg.GPU_DEVICE);
 else:
 	caffe.set_mode_cpu();
 
@@ -77,13 +76,15 @@ def show_result(image,bboxes):
 def demo():
 	print('\n\n\n\n\n\n\n\n\n');
 	cap = cv2.VideoCapture(cfg.CAMERA_INDEX);
-	# cap.set(3, 1920);
-	# cap.set(4, 1080);
+	cap.set(3, 1920);
+	cap.set(4, 1080);
 	ret, frame = cap.read();
         frame_index = cfg.frame_skip;
+	window_name = 'test_win'
+	cv2.namedWindow(window_name)
 	while(ret):
 		start = time.time();
-		ret,frame = cap.read();	
+		ret,frame = cap.read();
 		#frame = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_CUBIC)
                 if not ret:
                     continue;
@@ -97,15 +98,11 @@ def demo():
 		print('log project time = {}\n'.format(end - start));
 		#image = image[:,:,::-1]
 		#image = cv2.resize(image, (1080, 960),interpolation=cv2.INTER_CUBIC)
-		window_name = 'test_win'
-		# cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-		cv2.namedWindow(window_name)
-		cv2.namedWindow('detected')
-		cv2.namedWindow('aligned')
+		#cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
 		# cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 		cv2.imshow(window_name, image);
-
 		cv2.waitKey(33);
+
 if __name__ == '__main__':
 	demo();
 	

@@ -528,7 +528,6 @@ class Detector:
             _bbox.append(bbox)
             _point.append(points[idx])
             _ftr.append(verify_features[idx])
-
         # return boundingboxes, points, verify_features
         # return np.array(boundingboxes), np.array(points), verify_features
         return np.array(_bbox), np.array(_point), np.array(_ftr)

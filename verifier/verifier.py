@@ -76,7 +76,9 @@ class Verifier:
 	if self.database is not None:
 	    for ID in range(len(self.database)):
 		# dist = self.cosdist(feature,self.database[ID])
-		dists = self.dist(feature, self.database[ID], 'cosine')
+		dists = self.dist(feature, self.database[ID], 'cosine');
+                print('Dist for {} | {}'.format(self.ID_List[ID][:-1], dists))
+
                 for idx, distance in enumerate(dists):
                     # print('distance {}'.format(distance))
                     max_idx = np.argmax(distance)
@@ -136,7 +138,7 @@ class Verifier:
             #     faces[f_idx] = np.zeros((112, 96, 3))
         print('original length {}'.format(origin_length))
         faces = [alignment(faces[i], keypoints[i]) for i in range(origin_length)]
-        cv2.imshow('aligned', cv2.resize(faces[0], (96, 112)))
+        #cv2.imshow('aligned', cv2.resize(faces[0], (96, 112)))
         if origin_length < cfg.max_face:
             for _ in range(cfg.max_face - origin_length):
                 faces.append(np.zeros((112, 96, 3)))
@@ -195,5 +197,17 @@ def UNIT():
         query = cv2.imread(os.path.join('headteachers', 'xue_qikun-3.jpg'))
         ids = verify.Verifier([query])
 	print(ids)
+
+
+def TEST_DIST():
+    ftr1 = np.random.random((1,128));
+    ftr2 = np.random.random((1,128));
+    ans2 = ftr1.dot(ftr2.transpose()) /(np.sqrt(ftr1.dot(ftr1.transpose())) * np.sqrt(ftr2.dot(ftr2.transpose())) + 1.0e-5);
+    ftr1 = np.expand_dims(ftr1 / np.sqrt(np.sum(ftr1 ** 2, 1, keepdims=True)), 1)
+    ftr2 = np.expand_dims(ftr2 / np.sqrt(np.sum(ftr2 ** 2, 1, keepdims=True)), 0);
+    
+    ans1 = np.sum(ftr1 * ftr2, 2)
+    print(ans1,ans2);
+
 if __name__ == '__main__':
-	UNIT()
+	TEST_DIST()

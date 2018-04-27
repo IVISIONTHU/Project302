@@ -181,7 +181,7 @@ def online_test():
 
 if __name__ == '__main__':
     # verifier_test()
-    # online_test()
-    add_identity()
+    online_test()
+    #add_identity()
     # get_faces()
 	

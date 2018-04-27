@@ -25,7 +25,7 @@ detect_w = 320; # width of input image
 
 detect_h = 240; # height of input image
 
-detect_interval = 4;
+detect_interval = 1;
 
 detect_minsize = 30 # minsize of image pyramid
 

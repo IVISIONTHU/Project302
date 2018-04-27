@@ -12,8 +12,8 @@ class Project302:
 		self.max_face = max_face;
 		self.frame = 0;
 		self.detector = None;
-		#self.verifier = None;
-		self.show_result =show_result;
+		self.verifier = None;
+		self.show_result = show_result;
 		self.do_verification = do_verification
 		# load detection & tracking parameters
 		self.detect_w = cfg.detect_w;
@@ -36,7 +36,7 @@ class Project302:
 	    self.verifier = verifier.Verifier(model_proto, 
                                               model_weight, 
                                               database_root='../verifier/Database',
-                                              Threshold=0.32)
+                                              Threshold=0.2)
 	    print('verifier init success')
 
         def add_identity_to_database(self, img, ID, detect_before_id=False):
@@ -84,8 +84,8 @@ class Project302:
                 # raise TypeError
                 return None, None
             if single_face:
-                if len(bboxes) > 1:
-                    print('Containing multiple faces')
+                #if len(bboxes) > 1:
+                    #print('Containing multiple faces')
                     # raise TypeError
                 bboxes = bboxes[0].astype(np.int)
                 img = img[bboxes[1]:bboxes[3], bboxes[0]:bboxes[2], :]
@@ -151,9 +151,10 @@ class Project302:
                     tmp_index = tmp_index + 1;
             self.detector.point_cache = tmp_point[:tmp_index,:];
 
-        def draw(self, image, bboxes, points, ids):
+        def draw(self, image, bboxes, points, ids=None):
 	    image = self.detector.drawBoxes(image, bboxes, points)
-            print('ids {}'.format(ids))
+            if ids is None:
+                return image
             for _id, _bbox in zip(ids, bboxes):
                 if _id is None:
                     continue
@@ -174,7 +175,7 @@ class Project302:
 		
 		'''
 	        self.frame = self.frame + 1;
-                bboxes =  [];
+                bboxes = [];
                 points = [];
                 verify_features = [];
                 face_index = 0;
@@ -261,23 +262,22 @@ class Project302:
 		if (len(bboxes) >= 1):
                     _bbox = bboxes[:min(face_index, self.max_face),:]
                     _point = points[:min(face_index, self.max_face),:]
-                    _bbox = np.maximum(_bbox, 0.)
-                    _point = np.maximum(_point, 0.)
                     if self.do_verification and self.frame % self.detect_interval == 0:
+                        _bbox = np.maximum(_bbox, 0.)
+                        _point = np.maximum(_point, 0.)
                         faces = [image[bbox[1]:bbox[3], bbox[0]:bbox[2]] for bbox in _bbox.astype(np.int)]
-                        cv2.imshow('detected', faces[0])
                         _points = np.array([[[points[i][j] - _bbox[i][0], points[i][j+5] - _bbox[i][1]] 
                                          for j in range(5)] for i in range(len(_bbox))])
                         ids = self.verification(faces, _points)
-                        print('Results {}'.format(ids))
                         # _id = ids[:min(face_index, self.max_face),:]
 		        self.UpdateCache(_bbox, _point, np.array(ids), 0.8, 10)
+                        image_result = self.draw(image, self.detector.bbox_cache, self.detector.point_cache, self.verifier.id_cache)
                     else:
 		        self.UpdateCache(_bbox, _point, bbox_threshold=0.8, point_threshold=self.point_thresh)
+                        image_result = self.draw(image, self.detector.bbox_cache, self.detector.point_cache)
 
 		    # self.detector.UpdatePointCache(points[:min(face_index,self.max_face),:], 10); 
 		    # image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, points)
 		    # image_result = self.detector.drawBoxes(image, self.detector.bbox_cache, self.detector.point_cache)
-                    image_result = self.draw(image, self.detector.bbox_cache, self.detector.point_cache, self.verifier.id_cache)
 
 		return image_result
